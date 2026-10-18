@@ -16,7 +16,7 @@ jobs:
 
       - name: Build .wgt
         run: |
-          VERSION=$(grep -oP 'version="\K[0-9.]+' config.xml | head -1)
+          VERSION=$(tr '\n' ' ' < config.xml | grep -oP '<widget[^>]*\sversion="\K[0-9.]+')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           zip -X TVBrowser.wgt config.xml index.html style.css app.js sites.js icon.png
           unzip -l TVBrowser.wgt
