@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://github.com/Ditodumbadze/tv-browser" version="1.0.0" viewmodes="maximized">
+    <tizen:application id="TvBrowsr01.TvBrowser" package="TvBrowsr01" required_version="3.0"/>
+    <content src="index.html"/>
+    <icon src="icon.png"/>
+    <name>TV ბრაუზერი</name>
+    <access origin="*" subdomains="true"/>
+    <tizen:allow-navigation>*</tizen:allow-navigation>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:profile name="tv-samsung"/>
+    <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
+    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable"
+                   encryption="disable" install-location="auto" hwkey-event="enable"
+                   pointing-device-support="enable"/>
+</widget>

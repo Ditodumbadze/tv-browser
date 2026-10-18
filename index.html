@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>TV ბრაუზერი</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== საწყისი ეკრანი ===================== -->
+<section id="home">
+  <div class="top">
+    <div class="brand"><i>◎</i>TV ბრაუზერი</div>
+    <div class="addr" id="homeAddr" data-f data-act="address">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8e9bb8" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      ჩაწერე მისამართი ან საძიებო სიტყვა
+    </div>
+    <div class="clock"><b id="time">--:--</b><span id="date"></span></div>
+  </div>
+
+  <div class="status">
+    <div class="chip"><span class="dot"></span>სუფთა სესია</div>
+    <div class="chip">ერთი გვერდის რეჟიმი — ჩანართების გარეშე</div>
+    <div class="chip">საიტის შიგნით — მაუსი, მენიუში — პულტი</div>
+  </div>
+
+  <div id="contWrap"></div>
+
+  <h2>რჩეული საიტები</h2>
+  <div class="grid" id="grid"></div>
+
+  <h2>ბოლოს ნანახი</h2>
+  <div class="recent" id="recent"></div>
+
+  <div class="hints">
+    <div class="k"><span class="key">OK</span>გახსნა</div>
+    <div class="k"><span class="key">◀ BACK</span>უკან</div>
+    <div class="sp"></div>
+    <div class="k"><span class="c" style="background:var(--red)"></span>მისამართი</div>
+    <div class="k"><span class="c" style="background:var(--green)"></span>სუფთა გადატვირთვა</div>
+    <div class="k"><span class="c" style="background:var(--yellow)"></span>საიტის დამატება</div>
+    <div class="k"><span class="c" style="background:var(--blue)"></span>ბარათის წაშლა</div>
+  </div>
+</section>
+
+<!-- ===================== დათვალიერება ===================== -->
+<section id="browse" class="hidden">
+  <div id="frameHost"></div>
+  <div class="loading" id="loading"></div>
+  <div id="handle"></div>
+  <div class="overlay off" id="overlay">
+    <div class="btn" data-f data-act="back" title="უკან"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#eef2fb" stroke-width="2.6"><path d="M15 5l-7 7 7 7"/></svg></div>
+    <div class="btn" data-f data-act="reload" title="თავიდან ჩატვირთვა"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#eef2fb" stroke-width="2.4"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></div>
+    <div class="btn" data-f data-act="home" title="მთავარი"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#eef2fb" stroke-width="2.4"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg></div>
+    <div class="addr" data-f data-act="address"><span class="lock">🔒</span><span id="curUrl"></span></div>
+    <div class="btn" data-f data-act="star" title="რჩეულებში"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#f5d90a" stroke-width="2.2"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9z"/></svg></div>
+    <div class="btn wide" data-f data-act="fullopen" title="თუ გვერდი ცარიელია">სრულად გახსნა</div>
+  </div>
+  <div id="homeFab" title="მთავარი"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg></div>
+</section>
+
+<!-- ===================== დიალოგი ===================== -->
+<div class="dim hidden" id="dim"><div class="dialog" id="dialog"></div></div>
+
+<div class="toast off" id="toast"></div>
+
+<script src="sites.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
