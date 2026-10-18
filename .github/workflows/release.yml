@@ -1,4 +1,4 @@
-name: Build & Release
+name: Build, Sign & Release
 
 on:
   push:
@@ -8,18 +8,83 @@ on:
 permissions:
   contents: write
 
+env:
+  TS_VER: "5.6"
+  # ავტორის სერტიფიკატის პაროლი. სერტიფიკატი მხოლოდ Developer Mode-ში დასაყენებლადაა.
+  AUTHOR_PW: "tvbrowser-author-pw"
+
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build .wgt
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+
+      - name: Install Tizen Studio CLI
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq expect zip unzip libwebkit2gtk-4.0-37 >/dev/null || true
+          wget -q "https://download.tizen.org/sdk/Installer/tizen-studio_${TS_VER}/web-cli_Tizen_Studio_${TS_VER}_ubuntu-64.bin" -O installer.bin
+          chmod +x installer.bin
+          ./installer.bin --accept-license "$GITHUB_WORKSPACE/tizen-studio"
+          echo "TIZEN=$GITHUB_WORKSPACE/tizen-studio/tools/ide/bin/tizen" >> $GITHUB_ENV
+          echo "TS=$GITHUB_WORKSPACE/tizen-studio" >> $GITHUB_ENV
+
+      - name: Author certificate (create once, then reuse)
+        run: |
+          mkdir -p certs
+          if [ ! -f certs/author.p12 ]; then
+            "$TIZEN" certificate -a TvBrowser -p "$AUTHOR_PW" -c GE -ct Tbilisi -n "TV Browser" -f tvbrowser-author
+            find "$HOME" -name "tvbrowser-author.p12" -exec cp {} certs/author.p12 \;
+            ls -la certs
+            git config user.name "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add certs/author.p12
+            git commit -m "ავტორის სერტიფიკატი [skip ci]"
+            git push
+          fi
+
+      - name: Security profile (Tizen public distributor — Tizen < 7)
+        run: |
+          DIST="$TS/tools/certificate-generator/certificates/distributor/sdk-public"
+          DEV="$TS/tools/certificate-generator/certificates/developer"
+          cat > profiles.xml <<XML
+          <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+          <profiles active="TvOld" version="3.1">
+          <profile name="TvOld">
+          <profileitem ca="$DEV/tizen-developer-ca.cer" distributor="0" key="$GITHUB_WORKSPACE/certs/author.p12" password="$AUTHOR_PW" rootca=""/>
+          <profileitem ca="$DIST/tizen-distributor-ca.cer" distributor="1" key="$DIST/tizen-distributor-signer.p12" password="tizenpkcs12passfordsigner" rootca=""/>
+          <profileitem ca="" distributor="2" key="" password="" rootca=""/>
+          </profile>
+          </profiles>
+          XML
+          sed -i 's/^ *//' profiles.xml
+          "$TIZEN" cli-config "profiles.path=$GITHUB_WORKSPACE/profiles.xml"
+          cat profiles.xml
+
+      - name: Package & sign .wgt
         run: |
           VERSION=$(tr '\n' ' ' < config.xml | grep -oP '<widget[^>]*\sversion="\K[0-9.]+')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          zip -X TVBrowser.wgt config.xml index.html style.css app.js sites.js icon.png
+          rm -rf build && mkdir build
+          cp config.xml index.html style.css app.js sites.js icon.png build/
+          cat > pack.exp <<'EXP'
+          set timeout 300
+          spawn $env(TIZEN) package -t wgt -s TvOld -- build
+          expect {
+            -re "(?i)password" { send "$env(AUTHOR_PW)\r"; exp_continue }
+            eof
+          }
+          EXP
+          sed -i 's/^ *//' pack.exp
+          expect pack.exp
+          WGT=$(ls build/*.wgt | head -1)
+          mv "$WGT" TVBrowser.wgt
           unzip -l TVBrowser.wgt
+          unzip -p TVBrowser.wgt author-signature.xml | head -c 300 && echo
 
       - name: Publish release
         env:
@@ -28,4 +93,4 @@ jobs:
           TAG="v${VERSION}-${GITHUB_RUN_NUMBER}"
           gh release create "$TAG" TVBrowser.wgt \
             --title "TV ბრაუზერი ${VERSION} (build ${GITHUB_RUN_NUMBER})" \
-            --notes "ავტომატური აწყობა: ${GITHUB_SHA::7}" --latest
+            --notes "ხელმოწერილი (Tizen developer + public distributor). ${GITHUB_SHA::7}" --latest
