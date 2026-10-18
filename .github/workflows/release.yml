@@ -70,7 +70,7 @@ jobs:
           VERSION=$(tr '\n' ' ' < config.xml | grep -oP '<widget[^>]*\sversion="\K[0-9.]+')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           rm -rf build && mkdir build
-          cp config.xml index.html style.css app.js sites.js icon.png build/
+          cp config.xml index.html style.css app.js smart.js sites.js icon.png build/
           cat > pack.exp <<'EXP'
           set timeout 300
           spawn $env(TIZEN) package -t wgt -s TvOld -- build

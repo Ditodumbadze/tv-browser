@@ -10,7 +10,8 @@
               BACK: 10009, ESC: 27, BACKSPACE: 8,
               RED: 403, GREEN: 404, YELLOW: 405, BLUE: 406 };
   try {
-    ['ColorF0Red', 'ColorF1Green', 'ColorF2Yellow', 'ColorF3Blue'].forEach(function (k) {
+    ['ColorF0Red', 'ColorF1Green', 'ColorF2Yellow', 'ColorF3Blue', 'MediaPlayPause', 'MediaPlay', 'MediaPause',
+     'MediaStop', 'MediaFastForward', 'MediaRewind', 'ChannelUp', 'ChannelDown'].forEach(function (k) {
       window.tizen && tizen.tvinputdevice.registerKey(k);
     });
   } catch (e) { /* ბრაუზერში ტესტისას tizen არ არსებობს */ }
@@ -24,6 +25,7 @@
   var state = {
     view: 'home',                       // home | browse
     url: null,                          // გახსნილი საიტის მისამართი
+    mode: 'smart',                      // smart — პულტის კურსორი; direct — ჩვეულებრივი (მაუსით)
     frame: null,
     goingBack: false,
     backTimer: null,
@@ -183,6 +185,7 @@
 
   // ---------- გვერდის გახსნა / დახურვა ----------
   function destroyFrame() {
+    try { window.Smart && Smart.destroy(); } catch (e) {}
     if (state.frame) {
       try { state.frame.src = 'about:blank'; } catch (e) {}
       if (state.frame.parentNode) state.frame.parentNode.removeChild(state.frame);
@@ -191,18 +194,59 @@
     $('frameHost').innerHTML = '';
   }
 
-  function openUrl(url, name) {
+  function openUrl(url, name, mode) {
     if (!url) return;
     destroyFrame();
     state.url = url;
     state.view = 'browse';
+    state.mode = mode || 'smart';
     state.goingBack = false;
     // „დამცავი“ ჩანაწერი ისტორიაში: უკან სვლა მას ვერ გასცდება და აპლიკაცია არ დაიხურება.
     try { history.pushState({ tvguard: Date.now() }, ''); } catch (e) {}
     $('home').classList.add('hidden');
     $('browse').classList.remove('hidden');
     $('curUrl').textContent = url.replace(/^https?:\/\//, '');
+    $('modeBtn').textContent = state.mode === 'smart' ? 'რეჟიმი: კურსორი' : 'რეჟიმი: მაუსი';
+    hideOverlay();
 
+    save('session', { url: url, browsing: true, t: Date.now() });
+    var rec = load('recent', []).filter(function (r) { return r.url !== url; });
+    rec.unshift({ url: url, name: name || hostOf(url), t: Date.now() });
+    save('recent', rec.slice(0, 6));
+
+    if (state.mode === 'smart') return openSmart(url, name);
+    openDirect(url);
+  }
+
+  function openSmart(url, name) {
+    toast('ისრები — კურსორი · OK — დაჭერა · BACK — უკან · ზედა კიდესთან ↑ — მენიუ', 6000);
+    Smart.open($('frameHost'), url, {
+      onLoading: function () { progress(true); },
+      onLoaded: function () { progress(false); },
+      onUrl: function (u) {
+        state.url = u;
+        $('curUrl').textContent = u.replace(/^https?:\/\//, '');
+        save('session', { url: u, browsing: true, t: Date.now() });
+      },
+      onFallback: function (u) {
+        progress(false);
+        toast('ეს გვერდი კურსორის რეჟიმში ვერ ჩაიტვირთა — ჩვეულებრივი რეჟიმი (მაუსით)', 6000);
+        state.mode = 'direct';
+        $('modeBtn').textContent = 'რეჟიმი: მაუსი';
+        try { Smart.destroy(); } catch (e) {}
+        openDirect(u);
+      },
+      onEscaped: function () {
+        progress(false);
+        toast('საიტმა თავისით გადაამისამართა — აქ კურსორი ვერ აჭერს. BACK — უკან', 6000);
+      },
+      onBlocked: function () {
+        toast('ეს ნაწილი სხვა სერვერიდან იტვირთება — აქ მაუსი სჭირდება (🔵 — მაუსის რეჟიმი)', 5000);
+      }
+    });
+  }
+
+  function openDirect(url) {
     var f = document.createElement('iframe');
     f.setAttribute('allowfullscreen', '');
     f.setAttribute('allow', 'autoplay; fullscreen; encrypted-media');
@@ -211,11 +255,6 @@
     state.frame = f;
     $('frameHost').appendChild(f);
     progress(true);
-
-    save('session', { url: url, browsing: true, t: Date.now() });
-    var rec = load('recent', []).filter(function (r) { return r.url !== url; });
-    rec.unshift({ url: url, name: name || hostOf(url), t: Date.now() });
-    save('recent', rec.slice(0, 6));
 
     showOverlay(4000);
     toast('ზედა პანელი: პულტის ↑ ან მაუსი ეკრანის ზედა კიდესთან. თუ გვერდი ცარიელია — „სრულად გახსნა“.', 6000);
@@ -249,6 +288,7 @@
   }
 
   function goBack() {
+    if (state.mode === 'smart') { if (!Smart.back()) goHome(); return; }
     // iframe-ის ისტორია მშობელი ფანჯრის ისტორიის ნაწილია, ამიტომ history.back() გვერდს აბრუნებს.
     // პირველ გვერდზე უკან სვლა „დამცავ“ ჩანაწერს მიაღწევს (popstate) — მაშინ მთავარზე გავდივართ.
     state.goingBack = true;
@@ -259,10 +299,10 @@
 
   function cleanReload() {
     if (state.view !== 'browse' || !state.url) return;
-    var url = state.url;
+    var url = state.url, mode = state.mode;
     toast('სუფთა გადატვირთვა — მეხსიერება გათავისუფლდა');
     destroyFrame();
-    setTimeout(function () { openUrl(url); }, 250);
+    setTimeout(function () { openUrl(url, null, mode); }, 250);
   }
 
   // ---------- ზედა პანელი ----------
@@ -346,6 +386,7 @@
       case 'reload': cleanReload(); break;
       case 'home': goHome(); break;
       case 'star': addSiteDialog(state.url); break;
+      case 'mode': toggleMode(); break;
       case 'fullopen':
         // iframe-ის გარეშე, მთელ ფანჯარაში. დასაბრუნებლად აპლიკაცია თავიდან გაუშვი.
         save('session', { url: state.url, browsing: false, t: Date.now() });
@@ -385,11 +426,26 @@
     }
   }
 
+  function toggleMode() {
+    if (state.view !== 'browse' || !state.url) return;
+    var next = state.mode === 'smart' ? 'direct' : 'smart';
+    toast(next === 'smart' ? 'კურსორის რეჟიმი (პულტით)' : 'ჩვეულებრივი რეჟიმი (მაუსით)');
+    openUrl(state.url, null, next);
+  }
+
   // ---------- პულტი ----------
-  document.addEventListener('keydown', function (e) {
+  function onKey(e) {
     var k = e.keyCode;
     var inInput = document.activeElement && document.activeElement.tagName === 'INPUT';
     var dialogOpen = !$('dim').classList.contains('hidden');
+
+    // კურსორის რეჟიმი: ისრები/OK/მედია — საიტის შიგნით
+    if (state.view === 'browse' && state.mode === 'smart' && !dialogOpen && !overlayVisible()) {
+      var r = Smart.handleKey(e);
+      if (r === 'pass') return;
+      if (r === 'top') { e.preventDefault(); return showOverlay(6000); }
+      if (r) { e.preventDefault(); return; }
+    }
 
     if (inInput && (k === KEY.LEFT || k === KEY.RIGHT || k === KEY.BACKSPACE)) return; // ტექსტის რედაქტირება
 
@@ -400,7 +456,7 @@
       return; // მთავარ ეკრანზე Back არაფერს აკეთებს (გასასვლელად — EXIT)
     }
 
-    if (state.view === 'browse' && !dialogOpen && !overlayVisible()) {
+    if (state.view === 'browse' && state.mode === 'direct' && !dialogOpen && !overlayVisible()) {
       if (k === KEY.UP || k === KEY.ENTER || k === KEY.DOWN) { e.preventDefault(); return showOverlay(5000); }
     }
 
@@ -420,11 +476,14 @@
       case KEY.YELLOW: e.preventDefault(); if (!dialogOpen) addSiteDialog(state.view === 'browse' ? state.url : null); break;
       case KEY.BLUE:
         e.preventDefault();
+        if (state.view === 'browse' && !dialogOpen) { toggleMode(); break; }
         if (state.view === 'home' && current && current.classList.contains('tile') && current.getAttribute('data-url')) deleteDialog(current);
         break;
     }
     if (state.view === 'browse' && overlayVisible() && !dialogOpen) { clearTimeout(state.overlayTimer); state.overlayTimer = setTimeout(hideOverlay, 6000); }
-  });
+  }
+  document.addEventListener('keydown', onKey);
+  window.__tvKey = onKey;               // საიტის შიგნიდან (კურსორის რეჟიმში) მოსული ღილაკები
 
   // მაუსით დაჭერა ჩვენს ელემენტებზე
   document.addEventListener('click', function (e) {

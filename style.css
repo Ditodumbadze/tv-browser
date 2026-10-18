@@ -104,3 +104,12 @@ h2{font-size:28px;font-weight:600;color:#c9d3ea;margin:34px 80px 20px}
       font-size:26px;display:flex;align-items:center;cursor:pointer;transition:transform .12s}
 .dbtn.primary{background:var(--accent);border-color:var(--accent)}
 .dbtn.danger{background:#5a1d22;border-color:#8a2d34}
+
+/* ---------- პულტის კურსორი ---------- */
+#tvb-cursor{position:absolute;left:0;top:0;z-index:9;pointer-events:none;display:none;
+            filter:drop-shadow(0 3px 6px rgba(0,0,0,.6));transition:transform .06s linear}
+#tvb-cursor svg{transition:transform .12s}
+#tvb-cursor.press svg{transform:scale(.8)}
+#tvb-hl{position:absolute;left:0;top:0;z-index:8;pointer-events:none;display:none;border:3px solid #4f8cff;
+        border-radius:10px;box-shadow:0 0 0 5px rgba(79,140,255,.25)}
+.mode{font-size:22px}
